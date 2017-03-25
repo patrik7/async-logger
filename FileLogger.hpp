@@ -66,10 +66,19 @@ class FileLogEntry {
 			int length = strnlen(a, 1024);
 		
 			if(length < sizeof(this->data.short_char)) {
+				//short strings are kept in the queue
+			
 				strncpy(this->data.short_char, a, sizeof(this->data.short_char));				
 			} else {
+				//long strings are copied to the heap
 			
+				this->type = SERIALIZABLE;
+				this->data.serializable = new StringSerializable(a);
 			}
+		}
+
+		FileLogEntry(LoggerSerializable * const s) : type(SERIALIZABLE) {
+			this->data.serializable = s;
 		}
 		
 		void log_to_stream(std::ostream& log) const {
@@ -77,13 +86,18 @@ class FileLogEntry {
 				case INTEGER:      log << this->data.integer << "\n"; break;
 				case FLOATING:     log << this->data.floating << "\n"; break;
 				case SHORT_CHAR:   log << this->data.short_char << "\n"; break;
-				case SERIALIZABLE: this->data.serializable->serialize_to_stream(log); log << "\n"; break;
+				case SERIALIZABLE: {
+					this->data.serializable->serialize_to_stream(log);
+					log << "\n";
+					delete this->data.serializable;
+					break;
+				}
 			}		
 		}
 	
 };
 
-class FileLogger : Logger {
+class FileLogger : public Logger {
 
 	private:
 		boost::lockfree::queue<FileLogEntry> queue;
@@ -125,5 +139,6 @@ class FileLogger : Logger {
 FileLogger& operator<<(FileLogger& logger, int a);
 FileLogger& operator<<(FileLogger& logger, double a);
 FileLogger& operator<<(FileLogger& logger, const char* a);
+FileLogger& operator<<(FileLogger& logger, LoggerSerializable * const a);
 
 #endif

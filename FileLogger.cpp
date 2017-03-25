@@ -49,3 +49,9 @@ FileLogger& operator<<(FileLogger& logger, const char* a) {
 	return logger;
 }
 
+FileLogger& operator<<(FileLogger& logger, LoggerSerializable* s) {
+	logger.log(FileLogEntry(s->clone()));
+
+	return logger;
+}
+
