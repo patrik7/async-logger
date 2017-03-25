@@ -43,7 +43,7 @@ class StringSerializable : public LoggerSerializable {
 	std::string string;
 
 	public:
-		StringSerializable(const char* string) : string(string) {}
+		StringSerializable(const char* string, int length) : string(string, length) {}
 		virtual ~StringSerializable() {}
 		
 		virtual void serialize_to_stream(std::ostream& str) const {

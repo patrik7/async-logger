@@ -68,7 +68,7 @@ class FileLogger : public Logger {
 				}
 
 				LogEntry(const char *a) : type(SHORT_CHAR) {
-					int length = strnlen(a, 1024);
+					int length = strnlen(a, 4096); //security measure, we are not sure if string passed to us is '\0' terminated
 		
 					if(length < sizeof(this->data.short_char)) {
 						//short strings are kept in the queue
@@ -78,7 +78,7 @@ class FileLogger : public Logger {
 						//long strings are copied to the heap
 			
 						this->type = SERIALIZABLE;
-						this->data.serializable = new StringSerializable(a);
+						this->data.serializable = new StringSerializable(a, length);
 					}
 				}
 

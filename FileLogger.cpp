@@ -10,10 +10,14 @@ void FileLogger::queue_sync() {
 	this->log_file << "FileLogger started, queue size: " << this->queue_size << " (" << (sizeof(LogEntry)*this->queue_size) << "b)\n";
 
 	while(!this->shut_down_signal || !this->queue.empty()) {
-				
+		
+		bool logged_something = false;
+		
 		//flush the whole queue
 		LogEntry entry;		
-		while(this->queue.pop(entry)) {			
+		while(this->queue.pop(entry)) {
+			logged_something = true;
+			
 			entry.log_to_stream(this->log_file);
 			
 			//update stats
@@ -29,9 +33,14 @@ void FileLogger::queue_sync() {
 			this->log_file << failed_attempts << " log entries failed to log\n";
 		}
 		
-		//sleep before checking again - note: being woke up by the OS exactly when we have entries would be better.
-		//However, this is a good tradeoff for using lockless/sleepless queue
-		boost::this_thread::sleep(boost::posix_time::milliseconds(this->idle_wait_time_ms));
+		if(logged_something) {
+			this->log_file.flush(); //make sure we sync data to disk often enogh - we don't want to loose last logs on segfault		
+		} else {
+		
+			//sleep before checking again - note: being woke up by the OS exactly when we have entries would be better.
+			//However, this is a good tradeoff for using lockless/sleepless queue
+			boost::this_thread::sleep(boost::posix_time::milliseconds(this->idle_wait_time_ms));
+		}
 	}
 	
 	this->log_file << "FileLogger shut down\n";
