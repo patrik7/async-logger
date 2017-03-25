@@ -7,13 +7,22 @@ using namespace std;
 
 void FileLogger::queue_sync() {
 
-	this->log_file << "FileLogger started, queue size: " << this->queue_size << " (" << (sizeof(FileLogEntry)*this->queue_size) << "b)\n";
+	this->log_file << "FileLogger started, queue size: " << this->queue_size << " (" << (sizeof(LogEntry)*this->queue_size) << "b)\n";
 
 	while(!this->shut_down_signal || !this->queue.empty()) {
 				
 		//flush the whole queue
-		FileLogEntry entry;		
-		while(this->queue.pop(entry)) entry.log_to_stream(this->log_file);
+		LogEntry entry;		
+		while(this->queue.pop(entry)) {			
+			entry.log_to_stream(this->log_file);
+			
+			//update stats
+			if(entry.requires_allocation()) {
+				this->log_entries_with_allocation++;
+			} else {
+				this->log_entries_flat++;
+			}
+		}
 		
 		int failed_attempts = this->failed_log_attempts.exchange(0);		
 		if(failed_attempts) {
@@ -25,12 +34,14 @@ void FileLogger::queue_sync() {
 		boost::this_thread::sleep(boost::posix_time::milliseconds(this->idle_wait_time_ms));
 	}
 	
-	this->log_file << "Clean exit\n";
+	this->log_file << "FileLogger shut down\n";
+	this->log_file << "  Log entries that required memory allocation/freeing: " << this->log_entries_with_allocation << "\n";
+	this->log_file << "  Log entries without memory allocation/freeing: " << this->log_entries_flat << "\n";
 	
 	this->log_file.close();
 }
 
-void FileLogEntry::log_to_stream(std::ostream& log) const {
+void FileLogger::LogEntry::log_to_stream(std::ostream& log) const {
 	switch(this->type) {
 		case INTEGER:      log << this->data.integer << "\n"; break;
 		case FLOATING:     log << this->data.floating << "\n"; break;
@@ -46,11 +57,12 @@ void FileLogEntry::log_to_stream(std::ostream& log) const {
 			delete this->data.serializable;
 			break;
 		}
-	}		
+	}
+		
 }
 
 FileLogger& operator<<(FileLogger& logger, long long a) {
-	logger.log(FileLogEntry(a));
+	logger.log(FileLogger::LogEntry(a));
 
 	return logger;
 }
@@ -61,13 +73,13 @@ FileLogger& operator<<(FileLogger& logger, int a) {
 
 
 FileLogger& operator<<(FileLogger& logger, double a) {
-	logger.log(FileLogEntry(a));
+	logger.log(FileLogger::LogEntry(a));
 
 	return logger;
 }
 
 FileLogger& operator<<(FileLogger& logger, const char* a) {
-	logger.log(FileLogEntry(a));
+	logger.log(FileLogger::LogEntry(a));
 
 	return logger;
 }
