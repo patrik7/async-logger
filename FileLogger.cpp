@@ -7,7 +7,7 @@ using namespace std;
 
 void FileLogger::queue_sync() {
 
-	this->log_file << "Started\n";
+	this->log_file << "FileLogger started, queue size: " << this->queue_size << " (" << (sizeof(FileLogEntry)*this->queue_size) << "b)\n";
 
 	while(!this->shut_down_signal || !this->queue.empty()) {
 				
@@ -15,9 +15,14 @@ void FileLogger::queue_sync() {
 		FileLogEntry entry;		
 		while(this->queue.pop(entry)) entry.log_to_stream(this->log_file);
 		
+		int failed_attempts = this->failed_log_attempts.exchange(0);		
+		if(failed_attempts) {
+			this->log_file << failed_attempts << " log entries failed to log\n";
+		}
+		
 		//sleep before checking again - note: being woke up by the OS exactly when we have entries would be better.
 		//However, this is a good tradeoff for using lockless/sleepless queue
-		boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(this->idle_wait_time_ms));
 	}
 	
 	this->log_file << "Clean exit\n";
@@ -25,19 +30,37 @@ void FileLogger::queue_sync() {
 	this->log_file.close();
 }
 
-FileLogger& operator<<(FileLogger& logger, int a) {
+void FileLogEntry::log_to_stream(std::ostream& log) const {
+	switch(this->type) {
+		case INTEGER:      log << this->data.integer << "\n"; break;
+		case FLOATING:     log << this->data.floating << "\n"; break;
+		case SHORT_CHAR:   log << this->data.short_char << "\n"; break;
+		case SERIALIZABLE_INPLACE: {
+			reinterpret_cast<const LoggerSerializable*>(&this->data)->serialize_to_stream(log);
+			log << "\n";		
+			break;
+		}
+		case SERIALIZABLE: {
+			this->data.serializable->serialize_to_stream(log);
+			log << "\n";
+			delete this->data.serializable;
+			break;
+		}
+	}		
+}
+
+FileLogger& operator<<(FileLogger& logger, long long a) {
 	logger.log(FileLogEntry(a));
 
 	return logger;
 }
+
+FileLogger& operator<<(FileLogger& logger, int a) {
+	return logger << (long long)a;
+}
+
 
 FileLogger& operator<<(FileLogger& logger, double a) {
-	logger.log(FileLogEntry(a));
-
-	return logger;
-}
-
-FileLogger& operator<<(FileLogger& logger, char* a) {
 	logger.log(FileLogEntry(a));
 
 	return logger;
@@ -49,9 +72,11 @@ FileLogger& operator<<(FileLogger& logger, const char* a) {
 	return logger;
 }
 
-FileLogger& operator<<(FileLogger& logger, LoggerSerializable* s) {
-	logger.log(FileLogEntry(s->clone()));
+FileLogger& operator<<(FileLogger& logger, LoggerSerializable * const s) {
+	logger.log(s);
 
 	return logger;
 }
+
+
 

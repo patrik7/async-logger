@@ -7,20 +7,38 @@
 #include <string>
 
 class Logger {
-	public:
 
 };
 
+/**
+ * Extend from this class to have ability of passing it to the logger.
+ *
+ * Depending on Logger implementation, the class may be copied to the heap. 
+ */
 class LoggerSerializable {
 	public:
+					
+		//deep copy
+		virtual LoggerSerializable* clone(void* placement) const = 0;
+		
+		virtual ~LoggerSerializable() {}		
+	
+		//custom function to serialize the class
 		virtual void serialize_to_stream(std::ostream& str) const = 0;
 		
-		virtual LoggerSerializable* clone() const = 0;
+		virtual size_t get_size() const = 0;
 		
-		virtual ~LoggerSerializable() {}
-		
+		virtual LoggerSerializable* clone() const {
+			return this->clone(NULL);
+		}
+	
 };
 
+/**
+ * An example of extending the LoggerSerializable.
+ *
+ * Used to allocate long strings on the heap.
+ */
 class StringSerializable : public LoggerSerializable {
 	std::string string;
 
@@ -32,8 +50,12 @@ class StringSerializable : public LoggerSerializable {
 			str << string;
 		}
 	
-		virtual LoggerSerializable* clone() const {
-			return new StringSerializable(*this);
+		virtual LoggerSerializable* clone(void * placement) const {			
+			return placement ? new (placement) StringSerializable(*this) : new StringSerializable(*this);
+		}
+		
+		virtual size_t get_size() const {
+			return sizeof(*this);
 		}
 		
 };

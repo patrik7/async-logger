@@ -6,14 +6,20 @@ class Order : public LoggerSerializable {
 	private:
 		float price;
 		int quantity;
+		int a;
 		
 	public:
 		Order(float price, int quantity): price(price), quantity(quantity) {}
 	
 		virtual void serialize_to_stream(std::ostream& str) const;
-		virtual Order* clone() const {
-			return new Order(*this);
+		virtual Order* clone(void * placement) const {
+			return placement ? new (placement) Order(*this) : new Order(*this);
 		}
+		
+		virtual size_t get_size() const {
+			return sizeof(*this);
+		}
+
 
 };
 

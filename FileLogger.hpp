@@ -26,6 +26,7 @@ typedef enum types {
 	INTEGER,
 	FLOATING,
 	SHORT_CHAR,
+	SERIALIZABLE_INPLACE, //optiomization to save memory allocation for small objects
 	SERIALIZABLE
 } types_enum;
 
@@ -78,22 +79,15 @@ class FileLogEntry {
 		}
 
 		FileLogEntry(LoggerSerializable * const s) : type(SERIALIZABLE) {
-			this->data.serializable = s;
+			if(s->get_size() <= sizeof(this->data)) {				
+				s->clone(&this->data);
+				type = SERIALIZABLE_INPLACE;
+			} else {
+				this->data.serializable = s->clone(); //allocates copy on the heap
+			}
 		}
 		
-		void log_to_stream(std::ostream& log) const {
-			switch(this->type) {
-				case INTEGER:      log << this->data.integer << "\n"; break;
-				case FLOATING:     log << this->data.floating << "\n"; break;
-				case SHORT_CHAR:   log << this->data.short_char << "\n"; break;
-				case SERIALIZABLE: {
-					this->data.serializable->serialize_to_stream(log);
-					log << "\n";
-					delete this->data.serializable;
-					break;
-				}
-			}		
-		}
+		void log_to_stream(std::ostream&) const;
 	
 };
 
@@ -108,12 +102,19 @@ class FileLogger : public Logger {
 		
 		std::ofstream log_file;
 		
+		//counter keeps track of how many log entries failed to log due to queue being full
+		volatile std::atomic_uint failed_log_attempts;
+
+		const int idle_wait_time_ms = 500;
+		const int queue_size = 256;
+		
 	public:
 		FileLogger(const char* file_name) :
 			Logger(),
-			queue(128),
+			queue(queue_size),
 			thread(NULL),
-			shut_down_signal(false)
+			shut_down_signal(false),
+			failed_log_attempts(0)
 		{
 			log_file.open(file_name);
 			if(log_file.is_open()) {
@@ -121,8 +122,11 @@ class FileLogger : public Logger {
 			}
 		}
 		
+		//thread safe method
 		void log(const FileLogEntry& entry) {
-			queue.push(entry);
+			bool success = queue.push(entry);
+			
+			if(!success) failed_log_attempts++; //only touching volatile variable if log fails - should be rare
 		}
 		
 		virtual ~FileLogger() {
@@ -136,9 +140,14 @@ class FileLogger : public Logger {
 		}
 };
 
-FileLogger& operator<<(FileLogger& logger, int a);
-FileLogger& operator<<(FileLogger& logger, double a);
-FileLogger& operator<<(FileLogger& logger, const char* a);
-FileLogger& operator<<(FileLogger& logger, LoggerSerializable * const a);
+//basic types
+FileLogger& operator<<(FileLogger&, int);
+FileLogger& operator<<(FileLogger&, long long);
+FileLogger& operator<<(FileLogger&, double);
+FileLogger& operator<<(FileLogger&, const char*);
+
+//extandable generic type - extend from LoggerSerializable
+FileLogger& operator<<(FileLogger&, LoggerSerializable * const);
+FileLogger& operator<<(FileLogger&, const LoggerSerializable&);
 
 #endif
