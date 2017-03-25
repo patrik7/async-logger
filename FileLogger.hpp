@@ -20,6 +20,7 @@
  * FileLogger uses a non-blocking queue to store non-serialized data.
  * The queue is then emptied, serialized and pushed to a file on a separate thread.
  *
+ * It's possible to log to the logger from multiple threads.
  */
 
 class FileLogger : public Logger {
@@ -141,10 +142,11 @@ class FileLogger : public Logger {
 		}
 		
 		virtual ~FileLogger() {
+		
 			if(thread) {
-				shut_down_signal = true;
+				shut_down_signal = true; //signal the tread to stop processing
 
-				thread->join();
+				thread->join(); //wait for the thread to properly empty the queue and close the file
 			
 				delete thread;
 			}
@@ -157,7 +159,7 @@ FileLogger& operator<<(FileLogger&, long long);
 FileLogger& operator<<(FileLogger&, double);
 FileLogger& operator<<(FileLogger&, const char*);
 
-//extandable generic type - extend from LoggerSerializable
+//extendable generic type - extend from LoggerSerializable
 FileLogger& operator<<(FileLogger&, LoggerSerializable * const);
 FileLogger& operator<<(FileLogger&, const LoggerSerializable&);
 

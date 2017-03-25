@@ -1,7 +1,9 @@
 
 #include "FileLogger.hpp"
 
-
+/*
+ * A test class to show cast how to log a custom object
+ */
 class Order : public LoggerSerializable {
 	private:
 		float price;
@@ -23,7 +25,9 @@ class Order : public LoggerSerializable {
 
 };
 
-
+/*
+ * Another test class, this time having large memory requirements
+ */
 class AHugeClass : public LoggerSerializable {
 	private:
 		char buff[4096];
@@ -60,22 +64,40 @@ int main(int argc, char *argv[]) {
 
 	logger << "A sample message";
 
-	const int long_text_length = 4000;
-	char *buff = (char*)malloc(long_text_length);
+	{
+		//log a long string
+		
+		const int long_text_length = 4000;
+		char *buff = (char*)malloc(long_text_length);
 	
-	for(int i = 0; i < long_text_length - 1; i++) {
-		buff[i] = "abcdef"[i % 6];
+		for(int i = 0; i < long_text_length - 1; i++) {
+			buff[i] = "abcdef"[i % 6];
+		}
+		buff[long_text_length - 1] = '\n';
+	
+		logger << buff << "abcd" << 3.23;
+		free(buff);
 	}
-	buff[long_text_length - 1] = '\n';
+
+
+	{
+		//log custom objects
 	
-	logger << buff << "abcd" << 3.23;
-	free(buff);
+		Order o(23, 90);
 
-	Order o(23, 90);
+		logger << o;
 
-	logger << o;
-
-	logger << AHugeClass();
+		logger << AHugeClass();
+	}
+	
+	{
+		//nasty - log a non null terminated string
+		
+		char* buff = (char*)malloc(4);
+		strncpy(buff, "abcd", 4);
+		
+		logger << buff;
+	}
 
 	return 0;
 }

@@ -35,8 +35,8 @@ void FileLogger::queue_sync() {
 	}
 	
 	this->log_file << "FileLogger shut down\n";
-	this->log_file << "  Log entries that required memory allocation/freeing: " << this->log_entries_with_allocation << "\n";
-	this->log_file << "  Log entries without memory allocation/freeing: " << this->log_entries_flat << "\n";
+	this->log_file << "-log entries that required memory allocation/freeing: " << this->log_entries_with_allocation << "\n";
+	this->log_file << "-log entries without memory allocation/freeing: " << this->log_entries_flat << "\n";
 	
 	this->log_file.close();
 }
