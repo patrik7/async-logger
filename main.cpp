@@ -24,6 +24,26 @@ class Order : public LoggerSerializable {
 };
 
 
+class AHugeClass : public LoggerSerializable {
+	private:
+		char buff[4096];
+		
+	public:
+		AHugeClass() {}
+	
+		virtual void serialize_to_stream(std::ostream& str) const;
+		
+		virtual AHugeClass* clone(void * placement) const {
+			return placement ? new (placement) AHugeClass(*this) : new AHugeClass(*this);
+		}
+		
+		virtual size_t get_size() const {
+			return sizeof(*this);
+		}
+
+
+};
+
 int main(int argc, char *argv[]) {
 
 	auto path = "file.log";
@@ -53,11 +73,17 @@ int main(int argc, char *argv[]) {
 
 	Order o(23, 90);
 
-	logger << (&o);
+	logger << o;
+
+	logger << AHugeClass();
 
 	return 0;
 }
 
 void Order::serialize_to_stream(std::ostream& str) const {
 	str << "Order { price: " << this->price << ", quantity: " << this->quantity << " }";
+}
+
+void AHugeClass::serialize_to_stream(std::ostream& str) const {
+	str << "AHugeClass { size: " << sizeof(AHugeClass) << " }";
 }

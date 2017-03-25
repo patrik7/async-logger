@@ -78,5 +78,10 @@ FileLogger& operator<<(FileLogger& logger, LoggerSerializable * const s) {
 	return logger;
 }
 
+FileLogger& operator<<(FileLogger& logger, const LoggerSerializable& s) {
+	logger.log( (LoggerSerializable*)&s);
+
+	return logger;
+}
 
 
