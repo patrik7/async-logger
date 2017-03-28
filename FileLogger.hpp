@@ -67,19 +67,19 @@ class FileLogger : public Logger {
 					this->data.floating = a;		
 				}
 
-				LogEntry(const char *a) : type(SHORT_CHAR) {
-					int length = strnlen(a, 4096); //security measure, we are not sure if string passed to us is '\0' terminated
+				LogEntry(const std::string &a) : type(SHORT_CHAR) {
+					int length = a.length();
 		
 					if(length < sizeof(this->data.short_char)) {
 						//short strings are kept in the queue
 			
-						strncpy(this->data.short_char, a, sizeof(this->data.short_char));				
+						strncpy(this->data.short_char, a.c_str(), sizeof(this->data.short_char));				
 					} else {
 						//long strings are copied to the heap
 			
 						this->type = SERIALIZABLE;
-						this->data.serializable = new StringSerializable(a, length);
-					}
+						this->data.serializable = new StringSerializable(a.c_str(), length);
+					}					
 				}
 
 				LogEntry(LoggerSerializable * const s) : type(SERIALIZABLE) {
@@ -100,12 +100,13 @@ class FileLogger : public Logger {
 		};
 
 	private:
-		boost::lockfree::queue<LogEntry> queue;
+
+		const int idle_wait_time_ms = 1000;
+		const int queue_size = 256;
+	
 		boost::thread *thread;
 
-		void queue_sync();
-		std::atomic_bool shut_down_signal;
-		
+		std::atomic_uint shut_down_signal;
 		std::ofstream log_file;
 		
 		//counter keeps track of how many log entries failed to log due to queue being full
@@ -114,39 +115,40 @@ class FileLogger : public Logger {
 		//stats
 		int log_entries_flat;
 		int log_entries_with_allocation;
+		
+		boost::lockfree::queue<LogEntry> queue;
 
-		const int idle_wait_time_ms = 500;
-		const int queue_size = 256;
+		void queue_sync();
 		
 	public:
 		FileLogger(const char* file_name) :
 			Logger(),
-			queue(queue_size),
 			thread(NULL),
-			shut_down_signal(false),
+			shut_down_signal(0),
 			log_file(),
 			failed_log_attempts(0),
 			log_entries_flat(0),
-			log_entries_with_allocation(0)
+			log_entries_with_allocation(0),
+			queue(queue_size)
 		{
 			log_file.open(file_name);
 			if(log_file.is_open()) {
 				thread = new boost::thread(&FileLogger::queue_sync, this);
 			}
 		}
-		
+
 		//thread safe method
 		void log(const LogEntry& entry) {
 			bool success = queue.push(entry);
 			
 			if(!success) failed_log_attempts++; //only touching std::atomic variable if log fails - should be rare
 		}
-		
-		virtual ~FileLogger() {
-		
-			if(thread) {
-				shut_down_signal = true; //signal the tread to stop processing
 
+		virtual ~FileLogger() {
+
+			if(thread) {
+				shut_down_signal.store(true); //signal the tread to stop processing
+				
 				thread->join(); //wait for the thread to properly empty the queue and close the file
 			
 				delete thread;
@@ -158,7 +160,11 @@ class FileLogger : public Logger {
 FileLogger& operator<<(FileLogger&, int);
 FileLogger& operator<<(FileLogger&, long long);
 FileLogger& operator<<(FileLogger&, double);
-FileLogger& operator<<(FileLogger&, const char*);
+FileLogger& operator<<(FileLogger&, const std::string&);
+
+FileLogger& operator<<(FileLogger&, char *);
+
+FileLogger& operator<<(FileLogger&, const char *);
 
 //extendable generic type - extend from LoggerSerializable
 FileLogger& operator<<(FileLogger&, LoggerSerializable * const);

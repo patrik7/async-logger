@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
 		}
 		buff[long_text_length - 1] = '\0';
 	
-		logger << buff << "abcd" << 3.23;
+		logger << const_cast<const char *>(buff) << "abcd" << 3.23;
 		free(buff);
 	}
 
@@ -92,13 +92,18 @@ int main(int argc, char *argv[]) {
 	{
 		//nasty - log a non null terminated string
 		
+		/* note: no longer compiles
+
 		char* buff = (char*)malloc(4);
 		strncpy(buff, "abcd", 4);
 		
 		logger << buff;
 		
 		free(buff);
+		
+		*/
 	}
+
 
 	return 0;
 }
