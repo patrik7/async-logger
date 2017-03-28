@@ -9,7 +9,7 @@ void FileLogger::queue_sync() {
 
 	this->log_file << "FileLogger started, queue size: " << this->queue_size << " (" << (sizeof(LogEntry)*this->queue_size) << "b)\n";
 
-	while(!this->shut_down_signal || !this->queue.empty()) {
+	while(!this->shut_down_signal.load() || !this->queue.empty()) {
 		
 		bool logged_something = false;
 		
@@ -48,9 +48,11 @@ void FileLogger::queue_sync() {
 	this->log_file << "-log entries without memory allocation/freeing: " << this->log_entries_flat << "\n";
 	
 	this->log_file.close();
+	
 }
 
 void FileLogger::LogEntry::log_to_stream(std::ostream& log) const {
+
 	switch(this->type) {
 		case INTEGER:      log << this->data.integer << "\n"; break;
 		case FLOATING:     log << this->data.floating << "\n"; break;
@@ -87,8 +89,14 @@ FileLogger& operator<<(FileLogger& logger, double a) {
 	return logger;
 }
 
-FileLogger& operator<<(FileLogger& logger, const char* a) {
+FileLogger& operator<<(FileLogger& logger, const std::string& a) {
 	logger.log(FileLogger::LogEntry(a));
+
+	return logger;
+}
+
+FileLogger& operator<<(FileLogger& logger, const char * a) {
+	logger << std::string(a);
 
 	return logger;
 }

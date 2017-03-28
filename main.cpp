@@ -8,7 +8,6 @@ class Order : public LoggerSerializable {
 	private:
 		float price;
 		int quantity;
-		int a;
 		
 	public:
 		Order(float price, int quantity): price(price), quantity(quantity) {}
@@ -30,7 +29,7 @@ class Order : public LoggerSerializable {
  */
 class AHugeClass : public LoggerSerializable {
 	private:
-		char buff[4096];
+		char buff[4096]; //uninicialzed, and never used
 		
 	public:
 		AHugeClass() {}
@@ -73,9 +72,9 @@ int main(int argc, char *argv[]) {
 		for(int i = 0; i < long_text_length - 1; i++) {
 			buff[i] = "abcdef"[i % 6];
 		}
-		buff[long_text_length - 1] = '\n';
+		buff[long_text_length - 1] = '\0';
 	
-		logger << buff << "abcd" << 3.23;
+		logger << const_cast<const char *>(buff) << "abcd" << 3.23;
 		free(buff);
 	}
 
@@ -93,11 +92,18 @@ int main(int argc, char *argv[]) {
 	{
 		//nasty - log a non null terminated string
 		
+		/* note: no longer compiles
+
 		char* buff = (char*)malloc(4);
 		strncpy(buff, "abcd", 4);
 		
 		logger << buff;
+		
+		free(buff);
+		
+		*/
 	}
+
 
 	return 0;
 }
