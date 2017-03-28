@@ -162,7 +162,7 @@ FileLogger& operator<<(FileLogger&, long long);
 FileLogger& operator<<(FileLogger&, double);
 FileLogger& operator<<(FileLogger&, const std::string&);
 
-FileLogger& operator<<(FileLogger&, char *);
+FileLogger& operator<<(FileLogger&, char *); //purposely not implemneted to fail compilation and avoid implicit cast to const char *
 
 FileLogger& operator<<(FileLogger&, const char *);
 
