@@ -104,12 +104,12 @@ class FileLogger : public Logger {
 		boost::thread *thread;
 
 		void queue_sync();
-		volatile bool shut_down_signal;
+		std::atomic_bool shut_down_signal;
 		
 		std::ofstream log_file;
 		
 		//counter keeps track of how many log entries failed to log due to queue being full
-		volatile std::atomic_uint failed_log_attempts;
+		std::atomic_uint failed_log_attempts;
 		
 		//stats
 		int log_entries_flat;
@@ -124,6 +124,7 @@ class FileLogger : public Logger {
 			queue(queue_size),
 			thread(NULL),
 			shut_down_signal(false),
+			log_file(),
 			failed_log_attempts(0),
 			log_entries_flat(0),
 			log_entries_with_allocation(0)
@@ -138,7 +139,7 @@ class FileLogger : public Logger {
 		void log(const LogEntry& entry) {
 			bool success = queue.push(entry);
 			
-			if(!success) failed_log_attempts++; //only touching volatile variable if log fails - should be rare
+			if(!success) failed_log_attempts++; //only touching std::atomic variable if log fails - should be rare
 		}
 		
 		virtual ~FileLogger() {
